@@ -183,10 +183,8 @@ export async function kioskLookup(
   employeeId: string,
 ): Promise<ActionResult<KioskLookupOk>> {
   try {
-    const network = await getKioskNetworkAccess();
-    if (!network.allowed) {
-      return fail(kioskNetworkDeniedMessage(network.ip));
-    }
+    // Network allowlist is enforced only at activation. Starlink (and similar)
+    // rotates egress IPs; the device cookie is the ongoing trust boundary.
     const session = await requireActiveKiosk(slug);
     if (!session) {
       return fail(
@@ -238,10 +236,6 @@ export async function kioskAction(
   input: z.infer<typeof actionSchema>,
 ): Promise<ActionResult<{ id: string | null; status: string | null }>> {
   try {
-    const network = await getKioskNetworkAccess();
-    if (!network.allowed) {
-      return fail(kioskNetworkDeniedMessage(network.ip));
-    }
     const session = await requireActiveKiosk(input.slug);
     if (!session) {
       return fail(
