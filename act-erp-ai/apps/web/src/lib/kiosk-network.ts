@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import { env } from "./env";
-import { isIpAllowed } from "./ip-network";
+import { clientIpFromHeaders, isIpAllowed } from "./ip-network";
 
 /**
  * Read allowlist at request time. Avoid static `process.env.FOO` access in
@@ -13,18 +13,9 @@ function configuredNetworks() {
   return env.KIOSK_ALLOWED_NETWORKS;
 }
 
-function clientIpFrom(requestHeaders: Headers) {
-  // Caddy is the only public ingress and sets / replaces untrusted incoming XFF.
-  const forwarded = requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim();
-  if (forwarded) return forwarded;
-  const real = requestHeaders.get("x-real-ip")?.trim();
-  if (real) return real;
-  return null;
-}
-
 export async function getKioskNetworkAccess() {
   const requestHeaders = await headers();
-  const ip = clientIpFrom(requestHeaders);
+  const ip = clientIpFromHeaders(requestHeaders);
   const configured = configuredNetworks();
 
   // Local/dev without an allowlist stays usable. Production fails closed.

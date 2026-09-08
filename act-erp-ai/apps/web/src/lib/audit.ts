@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { headers } from "next/headers";
 import { getSessionUser } from "@/lib/auth";
+import { clientIpFromHeaders } from "@/lib/ip-network";
 
 /**
  * Write an audit log entry. Call from server actions on writes you want
@@ -30,10 +31,7 @@ export async function audit(args: {
         action: args.action,
         resource: args.resource,
         diff: args.diff ? (args.diff as object) : undefined,
-        ip:
-          h.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-          h.get("x-real-ip") ??
-          null,
+        ip: clientIpFromHeaders(h),
         userAgent: h.get("user-agent") ?? null,
       },
     });

@@ -1,5 +1,11 @@
 # Copy to infra/Caddyfile and set your real domain. Caddy auto-provisions
 # and renews a Let's Encrypt cert for it — no ACM, no ALB, no manual certbot.
+#
+# Overwrite X-Forwarded-For / X-Real-IP with the TCP peer so kiosk IP
+# allowlisting cannot be confused by client-supplied XFF junk.
 erp.yourcompany.com {
-	reverse_proxy web:3000
+	reverse_proxy web:3000 {
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Real-IP {remote_host}
+	}
 }

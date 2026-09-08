@@ -38,3 +38,22 @@ export function isIpAllowed(ip: string | null, configuredNetworks: string | unde
     .filter(Boolean)
     .some((network) => ipMatchesNetwork(ip, network));
 }
+
+/**
+ * Client IP behind a single trusted reverse proxy (Caddy).
+ * Caddy *appends* the TCP peer to X-Forwarded-For. Taking [0] trusts
+ * client-supplied / proxy junk; the last hop is what actually connected.
+ */
+export function clientIpFromHeaders(requestHeaders: Headers): string | null {
+  const real = requestHeaders.get("x-real-ip")?.trim();
+  if (real) return real;
+
+  const forwarded = requestHeaders.get("x-forwarded-for");
+  if (!forwarded) return null;
+  const parts = forwarded
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return parts.at(-1) ?? null;
+}
+
