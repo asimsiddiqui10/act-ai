@@ -12,7 +12,10 @@ import { audit } from "@/lib/audit";
 import { rateLimited } from "@/lib/rate-limit";
 import { ok, fail, failFromUnknown, type ActionResult } from "@/lib/action-result";
 import { requestUsesHttps } from "@/lib/cookie-secure";
-import { getKioskNetworkAccess } from "@/lib/kiosk-network";
+import {
+  getKioskNetworkAccess,
+  kioskNetworkDeniedMessage,
+} from "@/lib/kiosk-network";
 import { DEFAULT_KIOSK_PIN } from "@/lib/kiosk-pin";
 import { _clockIn, _clockOut, _startBreak, _endBreak } from "./time-clock";
 
@@ -81,9 +84,7 @@ export async function activateKiosk(
   try {
     const network = await getKioskNetworkAccess();
     if (!network.allowed) {
-      return fail(
-        "Kiosk activation is only available from the approved facility network.",
-      );
+      return fail(kioskNetworkDeniedMessage(network.ip));
     }
     const session = await db.kioskSession.findUnique({ where: { slug } });
     if (!session) {
@@ -184,7 +185,7 @@ export async function kioskLookup(
   try {
     const network = await getKioskNetworkAccess();
     if (!network.allowed) {
-      return fail("This kiosk can only be used from the approved facility network.");
+      return fail(kioskNetworkDeniedMessage(network.ip));
     }
     const session = await requireActiveKiosk(slug);
     if (!session) {
@@ -239,7 +240,7 @@ export async function kioskAction(
   try {
     const network = await getKioskNetworkAccess();
     if (!network.allowed) {
-      return fail("This kiosk can only be used from the approved facility network.");
+      return fail(kioskNetworkDeniedMessage(network.ip));
     }
     const session = await requireActiveKiosk(input.slug);
     if (!session) {
