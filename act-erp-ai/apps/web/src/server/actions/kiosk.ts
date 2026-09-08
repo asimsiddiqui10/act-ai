@@ -177,6 +177,63 @@ type KioskLookupOk = {
   activeEntryId: string | null;
 };
 
+export type KioskRosterEmployee = {
+  id: string;
+  employeeId: string;
+  name: string;
+  profilePic: string | null;
+  jobTitle: string | null;
+  status: "ACTIVE" | "ON_BREAK" | "OUT";
+};
+
+/** Active employees for the kiosk picker (grid/list). Requires device cookie. */
+export async function kioskListEmployees(
+  slug: string,
+): Promise<ActionResult<{ employees: KioskRosterEmployee[] }>> {
+  try {
+    const session = await requireActiveKiosk(slug);
+    if (!session) {
+      return fail(
+        "This kiosk session is not active on this device. An admin must activate the kiosk here first.",
+      );
+    }
+    if (rateLimited(`roster:${session.id}`, 20, 60_000)) {
+      return fail("Too many refreshes — wait a moment and try again.");
+    }
+
+    const rows = await db.employee.findMany({
+      where: { employmentStatus: "ACTIVE" },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        employeeId: true,
+        name: true,
+        profilePic: true,
+        jobTitle: true,
+        timeEntries: {
+          where: { status: { in: ["ACTIVE", "ON_BREAK"] } },
+          take: 1,
+          orderBy: { clockIn: "desc" },
+          select: { status: true },
+        },
+      },
+    });
+
+    return ok({
+      employees: rows.map((row) => ({
+        id: row.id,
+        employeeId: row.employeeId,
+        name: row.name,
+        profilePic: row.profilePic,
+        jobTitle: row.jobTitle,
+        status: (row.timeEntries[0]?.status ?? "OUT") as "ACTIVE" | "ON_BREAK" | "OUT",
+      })),
+    });
+  } catch (err) {
+    return failFromUnknown(err);
+  }
+}
+
 /** Lookup an employee by their business ID for the kiosk confirmation card. */
 export async function kioskLookup(
   slug: string,
